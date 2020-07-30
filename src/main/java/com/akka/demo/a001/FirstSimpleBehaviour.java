@@ -1,5 +1,7 @@
 package com.akka.demo.a001;
 
+import akka.actor.typed.ActorRef;
+import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
@@ -20,8 +22,18 @@ public class FirstSimpleBehaviour extends AbstractBehavior<String> {
 
 	@Override
 	public Receive<String> createReceive() {
-		return newReceiveBuilder().onAnyMessage(message -> {
-			log.info("I received a message : {}", message );
+		return newReceiveBuilder().onMessageEquals("say hello", () -> {
+			log.info("Hello there");
+			return this;
+		}).onMessageEquals("Who are you", (() -> {
+			log.info("My path is {}", getContext().getSelf().path());
+			return this;
+		})).onMessageEquals("create a child", (() -> {
+			ActorRef<String> secondActor = getContext().spawn(FirstSimpleBehaviour.create(), "secondActorSystem");
+			secondActor.tell("Who are you");
+			return this;
+		})).onAnyMessage(message -> {
+			log.info("I received a message : {}", message);
 			return this;
 		}).build();
 	}

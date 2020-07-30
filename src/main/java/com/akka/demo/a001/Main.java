@@ -4,10 +4,11 @@ import akka.actor.typed.ActorSystem;
 
 public class Main {
 
-	public static void main(String[] args) throws InterruptedException {
-		ActorSystem<String> firstActorSystem = ActorSystem.create(FirstSimpleBehaviour.create(), "FirstActorSystem");
-		firstActorSystem.tell("My first message. Are you there?");
-		Thread.sleep(3000);
-		firstActorSystem.tell("This is the second message");
+	public static void main(String[] args) {
+		ActorSystem<String> firstActorSystem = ActorSystem.create(FirstSimpleBehaviour.create(), "firstActorSystem");
+		firstActorSystem.tell("say hello");
+		firstActorSystem.tell("Who are you");
+		firstActorSystem.tell("create a child");
+		firstActorSystem.tell("Here is some message");
 	}
 }
