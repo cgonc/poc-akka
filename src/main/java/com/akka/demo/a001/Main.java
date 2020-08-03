@@ -3,6 +3,7 @@ package com.akka.demo.a001;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import akka.actor.typed.ActorSystem;
@@ -13,32 +14,34 @@ import lombok.extern.slf4j.Slf4j;
 public class Main {
 
 	public static void main(String[] args) {
-		ActorSystem<FirstSimpleBehaviour.Command> firstActorSystem = ActorSystem.create(FirstSimpleBehaviour.create(), "firstActorSystem");
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("hello"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Who are you"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("create a child"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
-		firstActorSystem.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		ActorSystem<FirstSimpleBehaviour.Command> exampleActor = ActorSystem.create(FirstSimpleBehaviour.create(), "firstActorSystem");
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("hello"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Who are you"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("create a child"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
+		exampleActor.tell(new FirstSimpleBehaviour.TellMeSomething("Here is some message"));
 
-		CompletionStage<List<String>> result = AskPattern.ask(firstActorSystem, FirstSimpleBehaviour.CollectTheResults::new, Duration.ofSeconds(10), firstActorSystem.scheduler());
-		AtomicReference<Boolean> complete = new AtomicReference<>(false);
+		CompletionStage<List<String>> result = AskPattern.ask(exampleActor, FirstSimpleBehaviour.CollectTheResults::new, Duration.ofSeconds(10), exampleActor.scheduler());
 		result.whenComplete((reply, failure) -> {
 			if(reply != null){
-				reply.forEach(log::info);
-				complete.set(true);
+				log.info("The system responds in time");
 			} else {
 				log.error("The system does not respond in time");
-				complete.set(false);
+				exampleActor.terminate();
+				throw new RuntimeException("The system does not respond in time");
 			}
-			firstActorSystem.terminate();
-		}).whenComplete((reply, failure) -> {
-			log.info("The execution result {}", complete.get().toString());
+			exampleActor.terminate();
 		});
-
+		try{
+			List<String> messages = result.toCompletableFuture().get();
+			messages.forEach(log::info);
+		} catch (InterruptedException | ExecutionException e){
+			e.printStackTrace();
+		}
 	}
 }
