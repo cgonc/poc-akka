@@ -1,4 +1,4 @@
-package com.akka.demo.a005;
+package com.akka.demo.a007;
 
 import java.io.Serializable;
 import java.time.Duration;
@@ -35,6 +35,13 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 		private static final long serialVersionUID = 1L;
 	}
 
+	@AllArgsConstructor
+	public static class RacerFinishedCommand implements Command {
+		private static final long serialVersionUID = 3727738160539964956L;
+		@Getter
+		private final ActorRef<Racer.Command> racer;
+	}
+
 	private RaceController(ActorContext<Command> context) {
 		super(context);
 	}
@@ -44,6 +51,8 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 	}
 
 	private Map<ActorRef<Racer.Command>, Integer> currentPositions;
+	@Getter
+	private Map<ActorRef<Racer.Command>, Long> finishingTimes;
 	private long start;
 	private final int raceLength = 100;
 	private final String TIMER_KEY = "racerTimeKey";
@@ -60,10 +69,21 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 		}
 	}
 
+	private void displayResults() {
+		finishingTimes.values().stream().sorted().forEach(it -> {
+			for (ActorRef<Racer.Command> key : finishingTimes.keySet()) {
+				if (finishingTimes.get(key).equals(it)) {
+					System.out.println("Racer " + key.path() + " finished in " + ( (double)it - start ) / 1000 + " seconds.");
+				}
+			}
+		});
+	}
+
 	public Receive<Command> createReceive() {
 		return newReceiveBuilder().onMessage(StartCommand.class, message -> {
 			start = System.currentTimeMillis();
 			currentPositions = new HashMap<>();
+			finishingTimes = new HashMap<>();
 			for(int i = 0; i < 10; i++){
 				ActorRef<Racer.Command> racer = getContext().spawn(Racer.create(), "racer" + i);
 				currentPositions.put(racer, 0);
@@ -71,18 +91,39 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 			}
 			return Behaviors.withTimers(timer -> {
 				timer.startTimerAtFixedRate(TIMER_KEY, new GetPositionsCommand(), Duration.ofSeconds(1));
-				return this;
+				return Behaviors.same();
 			});
 		}).onMessage(GetPositionsCommand.class, message -> {
 			for(ActorRef<Racer.Command> racer : currentPositions.keySet()){
 				racer.tell(new Racer.PositionCommand(getContext().getSelf()));
 				displayRace();
 			}
-			return this;
+			return Behaviors.same();
 		}).onMessage(RacerUpdateCommand.class, message -> {
 			currentPositions.put(message.getRacer(), message.getPosition());
-			return this;
+			return Behaviors.same();
+		}).onMessage(RacerFinishedCommand.class, message -> {
+			finishingTimes.put(message.getRacer(), System.currentTimeMillis());
+			if(finishingTimes.size() == 10){
+				return raceCompleteMessageHandler();
+			}
+			return Behaviors.same();
 		}).build();
 	}
 
+	public Receive<Command> raceCompleteMessageHandler() {
+		return newReceiveBuilder().onMessage(GetPositionsCommand.class, message -> {
+			//Actually you do not have to stop all of the children.
+			//Since the parent stops, the children spawned from it also stops automatically.
+			//However they have to stop in a clean fashion. a007 example is for that.
+			for(ActorRef<Racer.Command> racer : currentPositions.keySet()){
+				getContext().stop(racer);
+			}
+			displayResults();
+			return Behaviors.withTimers(timers -> {
+				timers.cancelAll();
+				return Behaviors.stopped();
+			});
+		}).build();
+	}
 }

@@ -18,11 +18,11 @@ import akka.actor.typed.javadsl.Receive;
 
 public class RaceController extends AbstractBehavior<RaceControllerCommand> {
 
-	private Object TIMER_KEY;
+	private final String TIMER_KEY = "RaceControllerTimeKey";
 
 	private Map<ActorRef<RacerCommand>, Integer> currentPositions;
 	private Long start;
-	private int raceLength = 100;
+	private final int raceLength = 100;
 
 	private RaceController(ActorContext<RaceControllerCommand> context) {
 		super(context);

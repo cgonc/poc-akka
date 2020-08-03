@@ -16,18 +16,14 @@ import lombok.Getter;
 
 public class RaceController extends AbstractBehavior<RaceController.Command> {
 
-	public interface Command extends Serializable {
-
-	}
+	public interface Command extends Serializable { }
 
 	public static class StartCommand implements Command {
-
 		private static final long serialVersionUID = -8775807999675952049L;
 	}
 
 	@AllArgsConstructor
 	public static class RacerUpdateCommand implements Command {
-
 		private static final long serialVersionUID = 1991780396587728039L;
 		@Getter
 		private final ActorRef<Racer.Command> racer;
@@ -36,13 +32,11 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 	}
 
 	private static class GetPositionsCommand implements Command {
-
 		private static final long serialVersionUID = 1L;
 	}
 
 	@AllArgsConstructor
 	public static class RacerFinishedCommand implements Command {
-
 		private static final long serialVersionUID = 3727738160539964956L;
 		@Getter
 		private final ActorRef<Racer.Command> racer;
@@ -73,6 +67,16 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 			System.out.println(i + " : " + new String(new char[currentPositions.get(racer) * displayLength / 100]).replace('\0', '*'));
 			i++;
 		}
+	}
+
+	private void displayResults() {
+		finishingTimes.values().stream().sorted().forEach(it -> {
+			for (ActorRef<Racer.Command> key : finishingTimes.keySet()) {
+				if (finishingTimes.get(key).equals(it)) {
+					System.out.println("Racer " + key.path() + " finished in " + ( (double)it - start ) / 1000 + " seconds.");
+				}
+			}
+		});
 	}
 
 	public Receive<Command> createReceive() {
@@ -109,6 +113,9 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 
 	public Receive<Command> raceCompleteMessageHandler() {
 		return newReceiveBuilder().onMessage(GetPositionsCommand.class, message -> {
+			//Actually you do not have to stop all of the children.
+			//Since the parent stops, the children spawned from it also stops automatically.
+			//However they have to stop in a clean fashion. a007 example is for that.
 			for(ActorRef<Racer.Command> racer : currentPositions.keySet()){
 				getContext().stop(racer);
 			}
@@ -118,15 +125,5 @@ public class RaceController extends AbstractBehavior<RaceController.Command> {
 				return Behaviors.stopped();
 			});
 		}).build();
-	}
-
-	private void displayResults() {
-		finishingTimes.values().stream().sorted().forEach(it -> {
-			for (ActorRef<Racer.Command> key : finishingTimes.keySet()) {
-				if (finishingTimes.get(key).equals(it)) {
-					System.out.println("Racer " + key.path() + " finished in " + ( (double)it - start ) / 1000 + " seconds.");
-				}
-			}
-		});
 	}
 }
