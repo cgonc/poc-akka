@@ -1,39 +1,66 @@
 package com.akka.demo.a001;
 
+import java.io.Serializable;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.SortedSet;
+
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.AbstractBehavior;
 import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.Behaviors;
 import akka.actor.typed.javadsl.Receive;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class FirstSimpleBehaviour extends AbstractBehavior<String> {
+public class FirstSimpleBehaviour extends AbstractBehavior<FirstSimpleBehaviour.Command> {
 
-	private FirstSimpleBehaviour(ActorContext<String> context) {
+	private final List<String> messages = new ArrayList<>();
+	private ActorRef<List<String>> sender;
+
+	public interface Command extends Serializable {
+
+	}
+
+	@AllArgsConstructor
+	public static class TellMeSomething implements Command {
+
+		private static final long serialVersionUID = -7796709831949054890L;
+		@Getter
+		private final String message;
+	}
+
+	@AllArgsConstructor
+	public static class CollectTheResults implements Command {
+
+		private static final long serialVersionUID = 1643210899551075153L;
+		@Getter
+		private final ActorRef<List<String>> sender;
+	}
+
+	private FirstSimpleBehaviour(ActorContext<Command> context) {
 		super(context);
 	}
 
-	public static Behavior<String> create() {
+	public static Behavior<Command> create() {
 		return Behaviors.setup(FirstSimpleBehaviour::new);
 	}
 
 	@Override
-	public Receive<String> createReceive() {
-		return newReceiveBuilder().onMessageEquals("say hello", () -> {
-			log.info("Hello there");
-			return this;
-		}).onMessageEquals("Who are you", (() -> {
-			log.info("My path is {}", getContext().getSelf().path());
-			return this;
-		})).onMessageEquals("create a child", (() -> {
-			ActorRef<String> secondActor = getContext().spawn(FirstSimpleBehaviour.create(), "secondActorSystem");
-			secondActor.tell("Who are you");
-			return this;
-		})).onAnyMessage(message -> {
-			log.info("I received a message : {}", message);
-			return this;
+	public Receive<Command> createReceive() {
+		return newReceiveBuilder().onMessage(TellMeSomething.class, message -> {
+			messages.add(message.getMessage());
+			return Behaviors.same();
+		}).onMessage(CollectTheResults.class, message -> {
+			this.sender = message.getSender();
+			if(messages.size() == 10){
+				this.sender.tell(messages);
+			}
+			return Behaviors.same();
 		}).build();
 	}
 }
