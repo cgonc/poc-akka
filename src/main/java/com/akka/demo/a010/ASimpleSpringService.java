@@ -11,5 +11,4 @@ public class ASimpleSpringService {
 	public void logSomething(String message){
 		log.info(message);
 	}
-
 }
